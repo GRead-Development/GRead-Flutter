@@ -99,4 +99,62 @@ class ActivityProvider extends ChangeNotifier {
     );
     await fetchActivityFeed(refresh: true);
   }
+
+  /// Create a new activity post
+  Future<bool> createPost(String content) async {
+    if (content.trim().isEmpty) {
+      _error = 'Post content cannot be empty';
+      notifyListeners();
+      return false;
+    }
+
+    final preview = content.substring(0, content.length > 50 ? 50 : content.length);
+    developer.log(
+      'Creating post with content: $preview...',
+      name: 'ActivityProvider',
+    );
+
+    try {
+      final activity = await _buddypress.createActivityPost(content);
+
+      developer.log(
+        'Activity response: $activity',
+        name: 'ActivityProvider',
+      );
+
+      if (activity != null) {
+        developer.log(
+          'Activity details - ID: ${activity.id}, Component: ${activity.component}, Type: ${activity.type}, Content: ${activity.content.substring(0, activity.content.length > 30 ? 30 : activity.content.length)}',
+          name: 'ActivityProvider',
+        );
+
+        // Add the new activity to the top of the list
+        _activities.insert(0, activity);
+        developer.log(
+          'Post created successfully, total activities: ${_activities.length}',
+          name: 'ActivityProvider',
+        );
+        notifyListeners();
+        return true;
+      }
+
+      _error = 'Failed to create post - no response from server';
+      developer.log(
+        'Activity is null',
+        name: 'ActivityProvider',
+      );
+      notifyListeners();
+      return false;
+    } catch (e, stackTrace) {
+      _error = 'Failed to create post: $e';
+      developer.log(
+        'Error creating post: $e',
+        name: 'ActivityProvider',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      notifyListeners();
+      return false;
+    }
+  }
 }

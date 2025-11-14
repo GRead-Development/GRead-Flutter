@@ -10,7 +10,7 @@ class HtmlUtils {
     }
 
     try {
-      final preview = htmlContent.substring(0, htmlContent.length > 100 ? 100 : htmlContent.length);
+      final preview = htmlContent.length > 100 ? htmlContent.substring(0, 100) : htmlContent;
       developer.log(
         'Decoding HTML: $preview...',
         name: 'HtmlUtils',

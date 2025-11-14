@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
 import '../models/activity.dart';
 import '../utils/html_utils.dart';
+import '../widgets/compose_post_dialog.dart';
 
 class ActivityFeedScreen extends StatefulWidget {
   const ActivityFeedScreen({super.key});
@@ -46,103 +47,113 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ActivityProvider>(
-      builder: (context, activityProvider, _) {
-        developer.log(
-          'ActivityFeedScreen build - Activities: ${activityProvider.activities.length}, Loading: ${activityProvider.loading}, Error: ${activityProvider.error}',
-          name: 'ActivityFeedScreen',
-        );
-
-        if (activityProvider.activities.isEmpty && activityProvider.loading) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Loading activities...'),
-              ],
-            ),
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          developer.log('Compose post FAB tapped', name: 'ActivityFeedScreen');
+          showComposePostDialog(context);
+        },
+        tooltip: 'Create Post',
+        child: const Icon(Icons.add),
+      ),
+      body: Consumer<ActivityProvider>(
+        builder: (context, activityProvider, _) {
+          developer.log(
+            'ActivityFeedScreen build - Activities: ${activityProvider.activities.length}, Loading: ${activityProvider.loading}, Error: ${activityProvider.error}',
+            name: 'ActivityFeedScreen',
           );
-        }
 
-        if (activityProvider.error != null && activityProvider.activities.isEmpty) {
-          return Center(
-            child: SingleChildScrollView(
+          if (activityProvider.activities.isEmpty && activityProvider.loading) {
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  const Text('Failed to Load Activities'),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        border: Border.all(color: Colors.red.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: SelectableText(
-                        activityProvider.error!,
-                        style: const TextStyle(fontSize: 12),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading activities...'),
+                ],
+              ),
+            );
+          }
+
+          if (activityProvider.error != null && activityProvider.activities.isEmpty) {
+            return Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    const Text('Failed to Load Activities'),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade200),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SelectableText(
+                          activityProvider.error!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      developer.log('User tapped retry', name: 'ActivityFeedScreen');
-                      activityProvider.refreshActivityFeed();
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        developer.log('User tapped retry', name: 'ActivityFeedScreen');
+                        activityProvider.refreshActivityFeed();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          if (activityProvider.activities.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.feed, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text('No activities yet'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => activityProvider.refreshActivityFeed(),
+                    child: const Text('Refresh'),
                   ),
                 ],
               ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () => activityProvider.refreshActivityFeed(),
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: activityProvider.activities.length + (activityProvider.loading ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == activityProvider.activities.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                final activity = activityProvider.activities[index];
+                return ActivityCard(activity: activity);
+              },
             ),
           );
-        }
-
-        if (activityProvider.activities.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.feed, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                const Text('No activities yet'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => activityProvider.refreshActivityFeed(),
-                  child: const Text('Refresh'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () => activityProvider.refreshActivityFeed(),
-          child: ListView.builder(
-            controller: _scrollController,
-            itemCount: activityProvider.activities.length + (activityProvider.loading ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == activityProvider.activities.length) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(),
-                );
-              }
-
-              final activity = activityProvider.activities[index];
-              return ActivityCard(activity: activity);
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -156,116 +167,178 @@ class ActivityCard extends StatelessWidget {
   });
 
   String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    try {
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
 
-    if (difference.inSeconds < 60) {
-      return 'just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${difference.inDays ~/ 7}w ago';
+      if (difference.inSeconds < 60) {
+        return 'just now';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inHours < 24) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays}d ago';
+      } else {
+        return '${difference.inDays ~/ 7}w ago';
+      }
+    } catch (e) {
+      developer.log(
+        'Error calculating time ago: $e',
+        name: 'ActivityCard',
+        error: e,
+      );
+      return 'unknown time';
     }
   }
 
   String _getDisplayContent() {
-    // Prefer HTML content with proper decoding
-    if (activity.contentHtml != null && activity.contentHtml!.isNotEmpty) {
-      return HtmlUtils.htmlToPlainText(activity.contentHtml);
+    try {
+      // Prefer HTML content with proper decoding
+      if (activity.contentHtml != null && activity.contentHtml!.isNotEmpty) {
+        return HtmlUtils.htmlToPlainText(activity.contentHtml);
+      }
+      // Fallback to plain text content
+      if (activity.content.isNotEmpty) {
+        return activity.content;
+      }
+      return '(No content)';
+    } catch (e) {
+      developer.log(
+        'Error getting display content: $e',
+        name: 'ActivityCard',
+        error: e,
+      );
+      return '(Content unavailable)';
     }
-    // Fallback to plain text content
-    return activity.content;
   }
 
   String _getActivityLabel() {
-    // Format component and type for display
-    final componentLabel = activity.component
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map((word) => word[0].toUpperCase() + word.substring(1))
-        .join(' ');
+    try {
+      // Format component and type for display
+      final componentLabel = activity.component.isNotEmpty
+          ? activity.component
+              .replaceAll('_', ' ')
+              .split(' ')
+              .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '')
+              .join(' ')
+          : 'Activity';
 
-    final typeLabel = activity.type
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map((word) => word[0].toUpperCase() + word.substring(1))
-        .join(' ');
+      final typeLabel = activity.type.isNotEmpty
+          ? activity.type
+              .replaceAll('_', ' ')
+              .split(' ')
+              .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '')
+              .join(' ')
+          : 'Update';
 
-    return '$componentLabel • $typeLabel';
+      return '$componentLabel • $typeLabel';
+    } catch (e) {
+      developer.log(
+        'Error formatting activity label: $e',
+        name: 'ActivityCard',
+        error: e,
+      );
+      return 'Activity • Update';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (activity.avatar != null)
-                  CircleAvatar(
-                    backgroundImage: NetworkImage(activity.avatar!),
-                    radius: 24,
-                  )
-                else
-                  CircleAvatar(
-                    radius: 24,
-                    child: Text(
-                      activity.userName.isNotEmpty ? activity.userName[0].toUpperCase() : '?',
+    try {
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (activity.avatar != null)
+                    CircleAvatar(
+                      backgroundImage: NetworkImage(activity.avatar!),
+                      radius: 24,
+                    )
+                  else
+                    CircleAvatar(
+                      radius: 24,
+                      child: Text(
+                        activity.userName.isNotEmpty ? activity.userName[0].toUpperCase() : '?',
+                      ),
+                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activity.displayName?.isNotEmpty == true
+                              ? activity.displayName!
+                              : (activity.userName.isNotEmpty ? activity.userName : 'Unknown'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          _getTimeAgo(activity.dateRecorded),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        activity.displayName ?? activity.userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        _getTimeAgo(activity.dateRecorded),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _getDisplayContent(),
+                style: const TextStyle(fontSize: 14),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _getActivityLabel(),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _getDisplayContent(),
-              style: const TextStyle(fontSize: 14),
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                _getActivityLabel(),
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 11,
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e, stackTrace) {
+      developer.log(
+        'Error building activity card: $e',
+        name: 'ActivityCard',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Error loading activity'),
+              const SizedBox(height: 8),
+              Text(
+                e.toString(),
+                style: const TextStyle(fontSize: 12, color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 }
