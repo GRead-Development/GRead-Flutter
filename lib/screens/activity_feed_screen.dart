@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
 import '../models/activity.dart';
+import '../utils/html_utils.dart';
 
 class ActivityFeedScreen extends StatefulWidget {
   const ActivityFeedScreen({super.key});
@@ -171,6 +172,32 @@ class ActivityCard extends StatelessWidget {
     }
   }
 
+  String _getDisplayContent() {
+    // Prefer HTML content with proper decoding
+    if (activity.contentHtml != null && activity.contentHtml!.isNotEmpty) {
+      return HtmlUtils.htmlToPlainText(activity.contentHtml);
+    }
+    // Fallback to plain text content
+    return activity.content;
+  }
+
+  String _getActivityLabel() {
+    // Format component and type for display
+    final componentLabel = activity.component
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+
+    final typeLabel = activity.type
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .join(' ');
+
+    return '$componentLabel • $typeLabel';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -219,29 +246,17 @@ class ActivityCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (activity.contentHtml != null && activity.contentHtml!.isNotEmpty)
-              Text(
-                activity.contentHtml!
-                    .replaceAll(RegExp(r'<[^>]*>'), '')
-                    .replaceAll('&nbsp;', ' ')
-                    .replaceAll('&quot;', '"')
-                    .replaceAll('&amp;', '&'),
-                style: const TextStyle(fontSize: 14),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              )
-            else
-              Text(
-                activity.content,
-                style: const TextStyle(fontSize: 14),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
+            Text(
+              _getDisplayContent(),
+              style: const TextStyle(fontSize: 14),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '${activity.component} • ${activity.type}',
+                _getActivityLabel(),
                 style: const TextStyle(
                   color: Colors.grey,
                   fontSize: 11,

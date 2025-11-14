@@ -48,7 +48,14 @@ class BuddyPressService {
           'Parsed ${activities.length} activities from map response',
           name: 'BuddyPressService',
         );
-        return activities;
+
+        // Filter to only show BuddyPress activities (not posts, etc.)
+        final filtered = activities.where((activity) => activity.isBuddyPressActivity()).toList();
+        developer.log(
+          'After filtering: ${filtered.length} activities (removed ${activities.length - filtered.length})',
+          name: 'BuddyPressService',
+        );
+        return filtered;
       } else if (response.data is List) {
         final activities = (response.data as List)
             .map((item) => Activity.fromJson(item as Map<String, dynamic>))
@@ -57,7 +64,14 @@ class BuddyPressService {
           'Parsed ${activities.length} activities from list response',
           name: 'BuddyPressService',
         );
-        return activities;
+
+        // Filter to only show BuddyPress activities (not posts, etc.)
+        final filtered = activities.where((activity) => activity.isBuddyPressActivity()).toList();
+        developer.log(
+          'After filtering: ${filtered.length} activities (removed ${activities.length - filtered.length})',
+          name: 'BuddyPressService',
+        );
+        return filtered;
       }
 
       developer.log(

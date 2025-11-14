@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -16,6 +17,12 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    developer.log('LoginScreen initialized', name: 'LoginScreen');
+  }
+
+  @override
   void dispose() {
     _user.dispose();
     _pass.dispose();
@@ -24,6 +31,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    developer.log(
+      'LoginScreen build - Loading: $_loading, Error: $_errorMessage',
+      name: 'LoginScreen',
+    );
     final auth = context.read<AuthProvider>();
 
     return Scaffold(
@@ -67,22 +78,61 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        final username = _user.text.trim();
+                        final password = _pass.text;
+
+                        developer.log(
+                          'Login button pressed - Username: $username, Password length: ${password.length}',
+                          name: 'LoginScreen',
+                        );
+
+                        if (username.isEmpty || password.isEmpty) {
+                          developer.log(
+                            'Login validation failed - Username empty: ${username.isEmpty}, Password empty: ${password.isEmpty}',
+                            name: 'LoginScreen',
+                          );
+                          setState(() => _errorMessage = 'Please enter username and password');
+                          return;
+                        }
+
                         setState(() {
                           _loading = true;
                           _errorMessage = null;
                         });
+                        developer.log('Login loading state set to true', name: 'LoginScreen');
+
                         try {
-                          final ok = await auth.login(_user.text, _pass.text);
+                          developer.log('Calling auth.login()', name: 'LoginScreen');
+                          final ok = await auth.login(username, password);
+
+                          developer.log(
+                            'auth.login() returned: $ok',
+                            name: 'LoginScreen',
+                          );
+
                           if (mounted) {
+                            developer.log('Widget mounted after login attempt', name: 'LoginScreen');
                             setState(() => _loading = false);
+
                             if (ok) {
-                              // ignore: use_build_context_synchronously
-                              Navigator.pushReplacementNamed(context, '/home');
+                              developer.log('Login successful, rebuilding app', name: 'LoginScreen');
+                              // The AppRoot will automatically show HomeScreen due to the watch on loggedIn
+                              // No need to navigate manually
                             } else {
-                              setState(() => _errorMessage = 'Login failed');
+                              developer.log('Login returned false', name: 'LoginScreen');
+                              setState(() => _errorMessage = 'Login failed - check username and password');
                             }
+                          } else {
+                            developer.log('Widget not mounted after login attempt', name: 'LoginScreen');
                           }
-                        } catch (e) {
+                        } catch (e, stackTrace) {
+                          developer.log(
+                            'Login exception: $e',
+                            name: 'LoginScreen',
+                            error: e,
+                            stackTrace: stackTrace,
+                          );
+
                           if (mounted) {
                             setState(() {
                               _loading = false;
