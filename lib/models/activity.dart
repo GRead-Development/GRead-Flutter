@@ -1,135 +1,207 @@
-import 'dart:developer' as developer;
-
 class Activity {
   final int id;
-  final String component;
-  final String type;
-  final int userId;
-  final String userName;
+  final int? userId;
+  final String? component;
+  final String? type;
+  final String? action;
+  final String? content;
+  final String? primaryLink;
+  final int? itemId;
+  final int? secondaryItemId;
+  final String? dateRecorded;
+  final int? hideSitewide;
+  final int? isSpam;
+  final String? userNicename;
+  final String? userLogin;
   final String? displayName;
-  final String content;
-  final String? contentHtml;
-  final DateTime dateRecorded;
-  final String? avatar;
+  final String? userFullname;
+  final String? userAvatar;
+  final int? parent;
+  List<Activity>? children;
 
   Activity({
     required this.id,
-    required this.component,
-    required this.type,
-    required this.userId,
-    required this.userName,
+    this.userId,
+    this.component,
+    this.type,
+    this.action,
+    this.content,
+    this.primaryLink,
+    this.itemId,
+    this.secondaryItemId,
+    this.dateRecorded,
+    this.hideSitewide,
+    this.isSpam,
+    this.userNicename,
+    this.userLogin,
     this.displayName,
-    required this.content,
-    this.contentHtml,
-    required this.dateRecorded,
-    this.avatar,
+    this.userFullname,
+    this.userAvatar,
+    this.parent,
+    this.children,
   });
 
   factory Activity.fromJson(Map<String, dynamic> json) {
-    developer.log(
-      'Parsing activity - Component: ${json['component']}, Type: ${json['type']}, ID: ${json['id']}',
-      name: 'Activity',
-    );
-    developer.log(
-      'Full activity data: $json',
-      name: 'Activity',
-    );
-
-    // Helper to safely convert values to strings
-    String _toSafeString(dynamic value, {String defaultValue = ''}) {
-      if (value == null) return defaultValue;
-      if (value is String) return value;
-      if (value is Map) {
-        // If it's a map, try to get a string representation
-        developer.log(
-          'Warning: Expected String but got Map for value: $value',
-          name: 'Activity',
-        );
-        return value.toString();
-      }
-      return value.toString();
+    // Helper to safely parse user ID
+    int? parseUserId() {
+      if (json['userId'] is int) return json['userId'];
+      if (json['userId'] is String) return int.tryParse(json['userId']);
+      if (json['user_id'] is int) return json['user_id'];
+      if (json['user_id'] is String) return int.tryParse(json['user_id']);
+      return null;
     }
 
-    // Extract avatar safely
-    String? _getAvatar() {
-      final avatarUrls = json['user_avatar_urls'];
-      if (avatarUrls == null) return null;
-
-      if (avatarUrls is Map) {
-        final full = avatarUrls['full'];
-        if (full is String) return full;
-        if (full != null) return full.toString();
-      } else if (avatarUrls is String) {
-        return avatarUrls;
+    // Parse content - might be wrapped in an object or plain string
+    String? parseContent() {
+      final contentField = json['content'];
+      if (contentField is String) return contentField;
+      if (contentField is Map) {
+        return contentField['rendered'] ?? contentField['raw'];
       }
       return null;
     }
 
     return Activity(
       id: json['id'] ?? 0,
-      component: _toSafeString(json['component']),
-      type: _toSafeString(json['type']),
-      userId: json['user_id'] ?? 0,
-      userName: _toSafeString(json['user_login']),
-      displayName: _toSafeString(json['user_nicename']),
-      content: _toSafeString(json['content']),
-      contentHtml: _toSafeString(json['content_html']),
-      dateRecorded: DateTime.tryParse(json['date_recorded'] ?? '') ?? DateTime.now(),
-      avatar: _getAvatar(),
+      userId: parseUserId(),
+      component: json['component'],
+      type: json['type'],
+      action: json['action'],
+      content: parseContent(),
+      primaryLink: json['primaryLink'] ?? json['primary_link'],
+      itemId: json['itemId'] ?? json['item_id'],
+      secondaryItemId: json['secondaryItemId'] ?? json['secondary_item_id'],
+      dateRecorded: json['dateRecorded'] ?? json['date_recorded'],
+      hideSitewide: json['hideSitewide'] ?? json['hide_sitewide'],
+      isSpam: json['isSpam'] ?? json['is_spam'],
+      userNicename: json['userNicename'] ?? json['user_nicename'],
+      userLogin: json['userLogin'] ?? json['user_login'],
+      displayName: json['displayName'] ?? json['display_name'],
+      userFullname: json['userFullname'] ?? json['user_fullname'],
+      userAvatar: json['userAvatar'] ?? json['user_avatar'],
+      parent: json['parent'],
+      children: json['children'] != null
+          ? (json['children'] as List).map((c) => Activity.fromJson(c)).toList()
+          : [],
     );
-  }
-
-  /// Check if this is a BuddyPress activity (not a post or other content)
-  bool isBuddyPressActivity() {
-    final componentLower = component.toLowerCase();
-    final typeLower = type.toLowerCase();
-
-    // Exclude specific activity types that are not user-generated content
-    final excludedTypes = {
-      'new_member',
-      'joined_group',
-      'user_registered',
-      'blog_published', // WordPress posts
-      'bp_member_activity_created',
-      'bp_activity_activity_created',
-    };
-
-    // Exclude non-user-content from members component
-    if (componentLower == 'members' && excludedTypes.contains(typeLower)) {
-      developer.log(
-        'Filtering out members signup - Type: $type',
-        name: 'Activity',
-      );
-      return false;
-    }
-
-    // Only show activities from these components with meaningful content
-    final isActivityComponent = componentLower == 'activity' ||
-        componentLower == 'groups' ||
-        (componentLower == 'members' && typeLower == 'updated_profile') ||
-        componentLower == 'friends' ||
-        componentLower == 'xprofile';
-
-    developer.log(
-      'Activity check - Component: $component, Type: $type, IsActivity: $isActivityComponent',
-      name: 'Activity',
-    );
-
-    return isActivityComponent;
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'user_id': userId,
       'component': component,
       'type': type,
-      'user_id': userId,
-      'user_login': userName,
-      'user_nicename': displayName,
+      'action': action,
       'content': content,
-      'content_html': contentHtml,
-      'date_recorded': dateRecorded.toIso8601String(),
-      'user_avatar_urls': {'full': avatar},
+      'primary_link': primaryLink,
+      'item_id': itemId,
+      'secondary_item_id': secondaryItemId,
+      'date_recorded': dateRecorded,
+      'hide_sitewide': hideSitewide,
+      'is_spam': isSpam,
+      'user_nicename': userNicename,
+      'user_login': userLogin,
+      'display_name': displayName,
+      'user_fullname': userFullname,
+      'user_avatar': userAvatar,
+      'parent': parent,
+      'children': children?.map((c) => c.toJson()).toList(),
+    };
+  }
+
+  // Computed property for getting the best available name
+  String get bestUserName {
+    if (displayName != null && displayName!.isNotEmpty) {
+      return displayName!;
+    } else if (userFullname != null && userFullname!.isNotEmpty) {
+      return userFullname!;
+    } else if (userLogin != null && userLogin!.isNotEmpty) {
+      return userLogin!;
+    } else if (userId != null) {
+      return 'User $userId';
+    } else {
+      return 'Unknown User';
+    }
+  }
+
+  // Computed property for avatar URL
+  String get avatarURL {
+    // If we have a user_avatar field from API, use it
+    if (userAvatar != null && userAvatar!.isNotEmpty) {
+      return userAvatar!;
+    }
+
+    // Otherwise construct BuddyPress members avatar URL
+    if (userId != null) {
+      return 'https://gread.fun/wp-content/uploads/avatars/$userId/avatar-bpfull.jpg';
+    }
+
+    // Final fallback - use a generic avatar
+    return 'https://www.gravatar.com/avatar/default?d=mp&s=150';
+  }
+}
+
+class ActivityResponse {
+  final List<Activity> activities;
+  final int? total;
+  final bool? hasMoreItems;
+
+  ActivityResponse({
+    required this.activities,
+    this.total,
+    this.hasMoreItems,
+  });
+
+  factory ActivityResponse.fromJson(Map<String, dynamic> json) {
+    return ActivityResponse(
+      activities: json['activities'] != null
+          ? (json['activities'] as List).map((a) => Activity.fromJson(a)).toList()
+          : [],
+      total: json['total'],
+      hasMoreItems: json['has_more_items'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'activities': activities.map((a) => a.toJson()).toList(),
+      'total': total,
+      'has_more_items': hasMoreItems,
+    };
+  }
+}
+
+class ActivityFeedResponse {
+  final bool success;
+  final List<Activity> activities;
+  final int? totalCount;
+  final bool? hasMorePages;
+
+  ActivityFeedResponse({
+    required this.success,
+    required this.activities,
+    this.totalCount,
+    this.hasMorePages,
+  });
+
+  factory ActivityFeedResponse.fromJson(Map<String, dynamic> json) {
+    return ActivityFeedResponse(
+      success: json['success'] ?? true,
+      activities: json['activities'] != null
+          ? (json['activities'] as List).map((a) => Activity.fromJson(a)).toList()
+          : [],
+      totalCount: json['total_count'],
+      hasMorePages: json['has_more_pages'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'success': success,
+      'activities': activities.map((a) => a.toJson()).toList(),
+      'total_count': totalCount,
+      'has_more_pages': hasMorePages,
     };
   }
 }
