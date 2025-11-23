@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
+import '../providers/moderation_provider.dart';
 import '../models/activity.dart';
 import '../utils/html_utils.dart';
 import '../widgets/compose_post_dialog.dart';
@@ -243,6 +244,198 @@ class ActivityCard extends StatelessWidget {
     }
   }
 
+  void _handleMenuAction(BuildContext context, String action, Activity activity) {
+    switch (action) {
+      case 'block':
+        _showBlockDialog(context, activity);
+        break;
+      case 'mute':
+        _showMuteDialog(context, activity);
+        break;
+      case 'report':
+        _showReportDialog(context, activity);
+        break;
+    }
+  }
+
+  Future<void> _showBlockDialog(BuildContext context, Activity activity) async {
+    final username = activity.displayName ?? activity.userName;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Block User?'),
+        content: Text(
+          'Are you sure you want to block $username?\n\nThey won\'t be able to see your posts and you won\'t see theirs.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Block'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final moderationProvider = context.read<ModerationProvider>();
+        await moderationProvider.blockUser(activity.userId);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Blocked $username')),
+          );
+          // Refresh the feed
+          context.read<ActivityProvider>().refreshActivityFeed();
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to block user: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showMuteDialog(BuildContext context, Activity activity) async {
+    final username = activity.displayName ?? activity.userName;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mute User?'),
+        content: Text(
+          'Are you sure you want to mute $username?\n\nYou won\'t see their posts, but they can still see yours.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Mute'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final moderationProvider = context.read<ModerationProvider>();
+        await moderationProvider.muteUser(activity.userId);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Muted $username')),
+          );
+          // Refresh the feed
+          context.read<ActivityProvider>().refreshActivityFeed();
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to mute user: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showReportDialog(BuildContext context, Activity activity) async {
+    final username = activity.displayName ?? activity.userName;
+    String selectedReason = 'Spam';
+    final reasonController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Report User'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Report $username for:'),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedReason,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Spam', child: Text('Spam')),
+                    DropdownMenuItem(value: 'Harassment', child: Text('Harassment')),
+                    DropdownMenuItem(value: 'Inappropriate Content', child: Text('Inappropriate Content')),
+                    DropdownMenuItem(value: 'Hate Speech', child: Text('Hate Speech')),
+                    DropdownMenuItem(value: 'Other', child: Text('Other')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selectedReason = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: 'Additional details (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final moderationProvider = context.read<ModerationProvider>();
+        await moderationProvider.reportUser(
+          userId: activity.userId,
+          reason: selectedReason,
+          additionalInfo: reasonController.text.isNotEmpty ? reasonController.text : null,
+        );
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Reported $username')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to report user: $e')),
+          );
+        }
+      }
+    }
+
+    reasonController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     try {
@@ -290,6 +483,42 @@ class ActivityCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) => _handleMenuAction(context, value, activity),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'block',
+                        child: Row(
+                          children: [
+                            Icon(Icons.block, size: 20),
+                            SizedBox(width: 12),
+                            Text('Block User'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'mute',
+                        child: Row(
+                          children: [
+                            Icon(Icons.volume_off, size: 20),
+                            SizedBox(width: 12),
+                            Text('Mute User'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag, size: 20),
+                            SizedBox(width: 12),
+                            Text('Report User'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
