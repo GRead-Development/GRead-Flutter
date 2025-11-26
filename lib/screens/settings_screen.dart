@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'login_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -26,7 +27,8 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthProvider>();
+    final auth = context.watch<AuthProvider>();
+    final isLoggedIn = auth.loggedIn;
 
     return Scaffold(
       body: ListView(
@@ -100,38 +102,48 @@ class SettingsScreen extends StatelessWidget {
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.red),
+              leading: Icon(
+                isLoggedIn ? Icons.logout : Icons.login,
+                color: isLoggedIn ? Colors.red : Colors.blue,
+              ),
+              title: Text(
+                isLoggedIn ? 'Logout' : 'Login',
+                style: TextStyle(
+                  color: isLoggedIn ? Colors.red : Colors.blue,
+                ),
               ),
               onTap: () async {
-                final shouldLogout = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Logout'),
-                    content: const Text('Are you sure you want to logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
+                if (isLoggedIn) {
+                  final shouldLogout = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
                         ),
-                        child: const Text('Logout'),
-                      ),
-                    ],
-                  ),
-                );
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          child: const Text('Logout'),
+                        ),
+                      ],
+                    ),
+                  );
 
-                if (shouldLogout == true && context.mounted) {
-                  await auth.logout();
-                  if (context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/');
+                  if (shouldLogout == true && context.mounted) {
+                    await auth.logout();
                   }
+                } else {
+                  // Navigate to login screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
                 }
               },
             ),

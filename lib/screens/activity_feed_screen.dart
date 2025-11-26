@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
 import '../providers/moderation_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/activity.dart';
 import '../utils/html_utils.dart';
 import '../widgets/compose_post_dialog.dart';
+import 'login_screen.dart';
 
 class ActivityFeedScreen extends StatefulWidget {
   const ActivityFeedScreen({super.key});
@@ -46,15 +48,47 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen> {
     }
   }
 
+  void _showLoginPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('You need to login to create posts and interact with users.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isLoggedIn = context.watch<AuthProvider>().loggedIn;
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           developer.log('Compose post FAB tapped', name: 'ActivityFeedScreen');
-          showComposePostDialog(context);
+          if (isLoggedIn) {
+            showComposePostDialog(context);
+          } else {
+            _showLoginPrompt(context);
+          }
         },
-        tooltip: 'Create Post',
+        tooltip: isLoggedIn ? 'Create Post' : 'Login to Post',
         child: const Icon(Icons.add),
       ),
       body: Consumer<ActivityProvider>(
@@ -439,6 +473,8 @@ class ActivityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     try {
+      final isLoggedIn = context.watch<AuthProvider>().loggedIn;
+
       return Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Padding(
@@ -484,42 +520,43 @@ class ActivityCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (value) => _handleMenuAction(context, value, activity),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'block',
-                        child: Row(
-                          children: [
-                            Icon(Icons.block, size: 20),
-                            SizedBox(width: 12),
-                            Text('Block User'),
-                          ],
+                  if (isLoggedIn)
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (value) => _handleMenuAction(context, value, activity),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'block',
+                          child: Row(
+                            children: [
+                              Icon(Icons.block, size: 20),
+                              SizedBox(width: 12),
+                              Text('Block User'),
+                            ],
+                          ),
                         ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'mute',
-                        child: Row(
-                          children: [
-                            Icon(Icons.volume_off, size: 20),
-                            SizedBox(width: 12),
-                            Text('Mute User'),
-                          ],
+                        const PopupMenuItem(
+                          value: 'mute',
+                          child: Row(
+                            children: [
+                              Icon(Icons.volume_off, size: 20),
+                              SizedBox(width: 12),
+                              Text('Mute User'),
+                            ],
+                          ),
                         ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'report',
-                        child: Row(
-                          children: [
-                            Icon(Icons.flag, size: 20),
-                            SizedBox(width: 12),
-                            Text('Report User'),
-                          ],
+                        const PopupMenuItem(
+                          value: 'report',
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag, size: 20),
+                              SizedBox(width: 12),
+                              Text('Report User'),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: 12),

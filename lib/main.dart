@@ -71,10 +71,7 @@ class _AppRootState extends State<AppRoot> {
       name: 'AppRoot',
     );
 
-    if (authProvider.loggedIn) {
-      return const HomeScreen();
-    } else {
-      return const LoginScreen();
-    }
+    // Always show HomeScreen, authentication is handled per-feature
+    return const HomeScreen();
   }
 }
